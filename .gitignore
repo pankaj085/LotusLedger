@@ -1,0 +1,55 @@
+# Ignore build outputs
+bin/
+obj/
+Properties/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Dependency directories
+node_modules/
+packages/
+
+# Generated files
+*.generated.cs
+
+# Configuration files
+appsettings*.json
+secrets.json
+
+# Entity Framework migrations
+Migrations/
+
+# Swagger files
+wwwroot/swagger/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Coverage reports
+coverage/
+*.coverage
+*.coveragexml
+
+# JetBrains Rider files
+.idea/
+*.iml
+
+# Visual Studio Code workspace settings
+.vscode/settings.json
