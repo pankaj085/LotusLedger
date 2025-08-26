@@ -86,16 +86,37 @@ namespace ProductInventory.Controllers
         [ProducesResponseType(404)]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductDto dto)
         {
-            if (dto.Price <= 0 || dto.StockQuantity < 0)
-                return BadRequest(new ApiResponse<string>(false, "Invalid product input"));
+            if (dto.Price.HasValue && dto.Price <= 0)
+                return BadRequest(new ApiResponse<string>(false, "Price must be greater than zero"));
+            // var existingProduct = await _productService.GetByIdAsync(id);
+            // if (existingProduct == null)
+            //     return NotFound();
 
-            var updatedEntity = _mapper.Map<Product>(dto);
-            var updatedProduct = await _productService.UpdateAsync(id, updatedEntity);
+            // _mapper.Map(dto, existingProduct); // Only updates non-null values
 
-            if (updatedProduct == null)
-                return NotFound(new ApiResponse<string>(false, "Product not found"));
+            // await _productService.UpdateAsync(id, existingProduct);
+            // return NoContent();
 
-            return Ok(new ApiResponse<ProductDto>(true, "Product updated", _mapper.Map<ProductDto>(updatedProduct)));
+            var existingProduct = await _productService.GetByIdAsync(id);
+            if (existingProduct == null)
+            {
+                return NotFound(new ApiResponse<string>(
+                    false,
+                    $"Product with ID {id} not found."
+                ));
+            }
+
+            _mapper.Map(dto, existingProduct); // Only updates non-null values
+
+            await _productService.UpdateAsync(id, existingProduct);
+
+            return Ok(new ApiResponse<Product>(
+                true,
+                $"Product with ID {id} updated successfully.",
+                existingProduct
+            ));
+
+
         }
 
         /// <summary>
@@ -112,6 +133,90 @@ namespace ProductInventory.Controllers
                 return NotFound(new ApiResponse<string>(false, "Product not found"));
 
             return Ok(new ApiResponse<string>(true, "Product deleted successfully"));
+        }
+
+
+        /// <summary>
+        /// Get a list of inactive products.
+        /// </summary>
+        /// <returns>List of inactive products</returns>
+        [HttpGet("inactive")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<Product>>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<ActionResult<ApiResponse<IEnumerable<Product>>>> GetInactiveProducts()
+        {
+            var inactiveProducts = await _productService.GetInactiveAsync();
+            if (inactiveProducts == null || !inactiveProducts.Any())
+            {
+                return NotFound(new ApiResponse<string>(
+                    false,
+                    "No inactive products found."
+                ));
+            }
+
+            return Ok(new ApiResponse<IEnumerable<Product>>(
+                true,
+                "Inactive products retrieved successfully",
+                inactiveProducts
+            ));
+        }
+
+        /// <summary>
+        /// Permanently delete a product from the inventory.
+        /// Only inactive products can be deleted permanently.
+        /// </summary>
+        /// <param name="id">Product ID (Guid)</param>
+        /// <returns>API response indicating the result of the operation</returns>
+        [HttpDelete("delete/{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<string>), 204)] // No Content
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)] // Not Found
+        [ProducesResponseType(typeof(ApiResponse<string>), 400)] // Bad Request
+        public async Task<IActionResult> DeleteProduct(Guid id)
+        {
+            var result = await _productService.DeleteProductPermanentlyAsync(id);
+
+            if (!result)
+            {
+                return NotFound(new ApiResponse<string>(
+                    false,
+                    "Only inactive products can be deleted, or product not found."
+                ));
+            }
+
+            return Ok(new ApiResponse<string>(
+                true,
+                "Product deleted permanently."
+            ));
+        }
+
+
+        /// <summary>
+        /// Reactivate a soft-deleted (inactive) product.
+        /// Only works if the product exists AND is currently inactive.
+        /// </summary>
+        /// <param name="id">Product ID (Guid)</param>
+        [HttpPut("{id:guid}/reactivate")]
+        [ProducesResponseType(typeof(ApiResponse<ProductDto>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<IActionResult> Reactivate(Guid id)
+        {
+            var reactivated = await _productService.ReactivateAsync(id);
+            if (reactivated == null)
+            {
+                // We explicitly searched ONLY inactive; not found means either:
+                // - product doesn't exist, or
+                // - product is already active.
+                return NotFound(new ApiResponse<string>(
+                    false,
+                    "Product not found or already active."
+                ));
+            }
+
+            return Ok(new ApiResponse<ProductDto>(
+                true,
+                "Product reactivated successfully.",
+                _mapper.Map<ProductDto>(reactivated)
+            ));
         }
     }
 }

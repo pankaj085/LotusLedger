@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using ProductInventory.AppDataContext;
 using ProductInventory.Interface;
 using ProductInventory.Services;
-using ProductInventory.MappingProfiles;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);

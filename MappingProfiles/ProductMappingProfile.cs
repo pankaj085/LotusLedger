@@ -1,19 +1,18 @@
 using AutoMapper;
-using ProductInventory.Models;
 using ProductInventory.Contracts;
+using ProductInventory.Models;
 
-namespace ProductInventory.MappingProfiles
+public class ProductMappingProfile : Profile
 {
-    public class ProductMappingProfile : Profile
+    public ProductMappingProfile()
     {
-        public ProductMappingProfile()
-        {
-            // Entity → DTO
-            CreateMap<Product, ProductDto>();
+        CreateMap<Product, ProductDto>();
+        CreateMap<CreateProductDto, Product>();
 
-            // DTO → Entity
-            CreateMap<CreateProductDto, Product>();
-            CreateMap<UpdateProductDto, Product>();
-        }
+        // For update, ignore nulls so only provided fields overwrite
+        CreateMap<UpdateProductDto, Product>()
+            .ForAllMembers(opts => opts.Condition(
+                (src, dest, srcMember) => srcMember != null
+            ));
     }
 }

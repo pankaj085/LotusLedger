@@ -53,16 +53,22 @@ namespace ProductInventory.Services
             return await _context.Products.FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
         }
 
+        public async Task<Product?> GetInactiveByIdAsync(Guid id)
+        {
+            // only for inactive
+            return await _context.Products.FirstOrDefaultAsync(p => p.Id == id && !p.IsActive);
+        }
+
         public async Task<Product?> UpdateAsync(Guid id, Product updatedProduct)
         {
-            var existing = await _context.Products.FindAsync(id);
-            if (existing == null || !existing.IsActive) return null;
+            var existing = await _context.Products.FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+            if (existing == null) return null;
 
-            existing.Name = updatedProduct.Name;
-            existing.Description = updatedProduct.Description;
-            existing.Price = updatedProduct.Price;
-            existing.StockQuantity = updatedProduct.StockQuantity;
-            existing.Category = updatedProduct.Category;
+            existing.Name = updatedProduct.Name ?? existing.Name;
+            existing.Description = updatedProduct.Description ?? existing.Description;
+            if (updatedProduct.Price != default) existing.Price = updatedProduct.Price;
+            if (updatedProduct.StockQuantity != default) existing.StockQuantity = updatedProduct.StockQuantity;
+            existing.Category = updatedProduct.Category ?? existing.Category;
             existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -78,5 +84,39 @@ namespace ProductInventory.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<IEnumerable<Product>> GetInactiveAsync()
+        {
+            return await _context.Products
+                .Where(p => !p.IsActive)
+                .ToListAsync();
+        }
+
+        public async Task<bool> DeleteProductPermanentlyAsync(Guid id)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null || product.IsActive)
+            {
+                return false; // Product not found or is still active
+            }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+            return true; // Deletion successful
+        }
+
+
+        public async Task<Product?> ReactivateAsync(Guid id)
+        {
+            // ONLY reactivate if currently INACTIVE
+            var product = await GetInactiveByIdAsync(id);
+            if (product == null) return null;
+
+            product.IsActive = true;
+            product.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return product;
+        }
+
     }
 }
