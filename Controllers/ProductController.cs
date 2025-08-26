@@ -1,3 +1,5 @@
+// Controllers/ProductController.cs
+
 using Microsoft.AspNetCore.Mvc;
 using ProductInventory.Interface;
 using ProductInventory.Contracts;
@@ -24,15 +26,25 @@ namespace ProductInventory.Controllers
         /// </summary>
         /// <param name="category">Filter by category (optional)</param>
         /// <param name="search">Search by name or description (optional)</param>
+        /// <param name="pageNumber">Page number for pagination (optional, default is 1)</param>
+        /// <param name="pageSize">Number of items per page (optional, default is 10)</param>
         /// <returns>List of products</returns>
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<IEnumerable<ProductDto>>), 200)]
-        public async Task<IActionResult> GetAll([FromQuery] string? category, [FromQuery] string? search)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] string? category, 
+            [FromQuery] string? search,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)   // default 10 items per page
         {
-            var products = await _productService.GetAllAsync(category, search);
+            var products = await _productService.GetAllAsync(category, search, pageNumber, pageSize);
             var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products);
 
-            return Ok(new ApiResponse<IEnumerable<ProductDto>>(true, "Products fetched successfully", productDtos));
+            return Ok(new ApiResponse<IEnumerable<ProductDto>>(
+                true, 
+                "Products fetched successfully", 
+                productDtos
+            ));
         }
 
         /// <summary>
@@ -75,6 +87,37 @@ namespace ProductInventory.Controllers
             return CreatedAtAction(nameof(GetById), new { id = createdProduct.Id }, response);
         }
 
+
+        /// <summary>
+        /// Partially update an existing product (PATCH).
+        /// Only provided fields will be updated.
+        /// </summary>
+        /// <param name="id">Product ID (Guid)</param>
+        /// <param name="dto">Fields to update</param>
+        [HttpPatch("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<ProductDto>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 400)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<IActionResult> PatchUpdate(Guid id, [FromBody] UpdateProductDto dto)
+        {
+            if (dto.Price.HasValue && dto.Price <= 0)
+                return BadRequest(new ApiResponse<string>(false, "Price must be greater than 0."));
+
+            if (dto.StockQuantity.HasValue && dto.StockQuantity < 0)
+                return BadRequest(new ApiResponse<string>(false, "StockQuantity cannot be negative."));
+
+            var updatedProduct = await _productService.PatchUpdateAsync(id, dto);
+
+            if (updatedProduct == null)
+                return NotFound(new ApiResponse<string>(false, "Product not found."));
+
+            return Ok(new ApiResponse<ProductDto>(
+                true,
+                "Product updated successfully.",
+                _mapper.Map<ProductDto>(updatedProduct)
+            ));
+        }
+
         /// <summary>
         /// Update an existing product.
         /// </summary>
@@ -88,14 +131,6 @@ namespace ProductInventory.Controllers
         {
             if (dto.Price.HasValue && dto.Price <= 0)
                 return BadRequest(new ApiResponse<string>(false, "Price must be greater than zero"));
-            // var existingProduct = await _productService.GetByIdAsync(id);
-            // if (existingProduct == null)
-            //     return NotFound();
-
-            // _mapper.Map(dto, existingProduct); // Only updates non-null values
-
-            // await _productService.UpdateAsync(id, existingProduct);
-            // return NoContent();
 
             var existingProduct = await _productService.GetByIdAsync(id);
             if (existingProduct == null)
@@ -115,8 +150,6 @@ namespace ProductInventory.Controllers
                 $"Product with ID {id} updated successfully.",
                 existingProduct
             ));
-
-
         }
 
         /// <summary>
@@ -135,29 +168,95 @@ namespace ProductInventory.Controllers
             return Ok(new ApiResponse<string>(true, "Product deleted successfully"));
         }
 
+        /// <summary>
+        /// Get active products with low stock, with optional category and search filtering.
+        /// </summary>
+        /// <param name="category">Optional category filter</param>
+        /// <param name="search">Optional search by name or description</param>
+        /// <param name="threshold">Stock threshold (default 25)</param>
+        /// <param name="pageNumber">Page number (default 1)</param>
+        /// <param name="pageSize">Page size (default 10)</param>
+        [HttpGet("low-stock")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<ProductDto>>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<IActionResult> GetLowStock(
+            [FromQuery] string? category = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int threshold = 25,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var lowStockProducts = await _productService.GetLowStockAsync(category, search, threshold, pageNumber, pageSize);
+
+            if (!lowStockProducts.Any())
+                return NotFound(new ApiResponse<string>(false, "No low-stock products found."));
+
+            var productDtos = _mapper.Map<IEnumerable<ProductDto>>(lowStockProducts);
+
+            return Ok(new ApiResponse<IEnumerable<ProductDto>>(
+                true,
+                $"Low-stock products (stock < {threshold}) retrieved successfully.",
+                productDtos
+            ));
+        }
+
 
         /// <summary>
-        /// Get a list of inactive products.
+        /// Get a list of inactive products with optional filtering.
         /// </summary>
-        /// <returns>List of inactive products</returns>
+        /// <param name="category">Filter by category (optional)</param>
+        /// <param name="search">Search by name or description (optional)</param>
+        /// <param name="pageNumber">Page number for pagination (default 1)</param>
+        /// <param name="pageSize">Page size for pagination (default 10)</param>
         [HttpGet("inactive")]
-        [ProducesResponseType(typeof(ApiResponse<IEnumerable<Product>>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<ProductDto>>), 200)]
         [ProducesResponseType(typeof(ApiResponse<string>), 404)]
-        public async Task<ActionResult<ApiResponse<IEnumerable<Product>>>> GetInactiveProducts()
+        public async Task<IActionResult> GetInactive(
+            [FromQuery] string? category = null,
+            [FromQuery] string? search = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var inactiveProducts = await _productService.GetInactiveAsync();
-            if (inactiveProducts == null || !inactiveProducts.Any())
+            var inactiveProducts = await _productService.GetInactiveAsync(category, search, pageNumber, pageSize);
+
+            if (!inactiveProducts.Any())
+                return NotFound(new ApiResponse<string>(false, "No inactive products found."));
+
+            var productDtos = _mapper.Map<IEnumerable<ProductDto>>(inactiveProducts);
+
+            return Ok(new ApiResponse<IEnumerable<ProductDto>>(
+                true,
+                "Inactive products retrieved successfully",
+                productDtos
+            ));
+        }
+
+        /// <summary>
+        /// Reactivate a soft-deleted (inactive) product.
+        /// Only works if the product exists and is currently inactive.
+        /// </summary>
+        /// <param name="id">Product ID (Guid)</param>
+        [HttpPut("{id:guid}/reactivate")]
+        [ProducesResponseType(typeof(ApiResponse<ProductDto>), 200)]
+        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
+        public async Task<IActionResult> Reactivate(Guid id)
+        {
+            var reactivated = await _productService.ReactivateAsync(id);
+            if (reactivated == null)
             {
+                // We explicitly searched ONLY inactive; not found means either:
+                // - product doesn't exist, or
+                // - product is already active.
                 return NotFound(new ApiResponse<string>(
                     false,
-                    "No inactive products found."
+                    "Product not found or already active."
                 ));
             }
 
-            return Ok(new ApiResponse<IEnumerable<Product>>(
+            return Ok(new ApiResponse<ProductDto>(
                 true,
-                "Inactive products retrieved successfully",
-                inactiveProducts
+                "Product reactivated successfully.",
+                _mapper.Map<ProductDto>(reactivated)
             ));
         }
 
@@ -186,36 +285,6 @@ namespace ProductInventory.Controllers
             return Ok(new ApiResponse<string>(
                 true,
                 "Product deleted permanently."
-            ));
-        }
-
-
-        /// <summary>
-        /// Reactivate a soft-deleted (inactive) product.
-        /// Only works if the product exists AND is currently inactive.
-        /// </summary>
-        /// <param name="id">Product ID (Guid)</param>
-        [HttpPut("{id:guid}/reactivate")]
-        [ProducesResponseType(typeof(ApiResponse<ProductDto>), 200)]
-        [ProducesResponseType(typeof(ApiResponse<string>), 404)]
-        public async Task<IActionResult> Reactivate(Guid id)
-        {
-            var reactivated = await _productService.ReactivateAsync(id);
-            if (reactivated == null)
-            {
-                // We explicitly searched ONLY inactive; not found means either:
-                // - product doesn't exist, or
-                // - product is already active.
-                return NotFound(new ApiResponse<string>(
-                    false,
-                    "Product not found or already active."
-                ));
-            }
-
-            return Ok(new ApiResponse<ProductDto>(
-                true,
-                "Product reactivated successfully.",
-                _mapper.Map<ProductDto>(reactivated)
             ));
         }
     }
