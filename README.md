@@ -87,7 +87,7 @@ Follow these instructions to get a local copy of LotusLedger up and running on y
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/your-username/LotusLedger.git](https://github.com/your-username/LotusLedger.git)
+git clone https://github.com/pankaj085/LotusLedger.git
 cd LotusLedger
 ````
 
