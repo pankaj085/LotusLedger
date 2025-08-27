@@ -2,7 +2,7 @@
 
 This document provides a complete and accurate list of API endpoints for the LotusLedger Product Inventory Management System.
 <p align="center">
-    <img src="/assests/Screenshot from 2025-08-27 11-36-22.png" alt="Endpoints" width="500"/>
+    <img src="/assests/Screenshot from 2025-08-27 11-36-22.png" alt="Endpoints" width="850"/>
 </p>
 
 ---
