@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/pankaj085/LotusLedger">
-    <img src="/assests/lotusledger.svg" alt="LotusLedger" width="150"/>
+    <img src="/assests/lotusledger.svg" alt="LotusLedger" width="300"/>
   </a>
 </p>
 
@@ -47,6 +47,16 @@ A clean and robust **.NET 8 Web API** designed for modern product inventory mana
     -   `GET /products/low-stock` - Get a list of all products below the stock threshold.
 
 👉 For a complete list of endpoints, request/response models, and examples, please see the **[API Documentation](ENDPOINTS.md)**.
+
+---
+
+## 🧪 API Testing with Postman
+
+To make testing the LotusLedger API as easy as possible, a complete Postman collection is available. Click the button below to fork the collection to your own Postman workspace.
+
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://www.postman.com/mrlotus/workspace/lotusledger/collection/43877835-98b3d4d1-7a0b-406c-9766-de9b48d91a19?action=share&source=copy-link&creator=43877835)
+
+After forking, remember to set the `baseUrl` variable in the collection's settings to your local environment (e.g., `http://localhost:5000`).
 
 ---
 
@@ -132,10 +142,10 @@ dotnet build
 dotnet run
 ```
 
-The API will be available at `http://localhost:5000` (or a similar port).
+The API will be available at `http://localhost:5258/` (or a similar port).
 
-  - **API Base URL:** `http://localhost:5000`
-  - **Swagger UI:** `http://localhost:5000/swagger`
+  - **API Base URL:** `http://localhost:5258/`
+  - **Swagger UI:** `http://localhost:5258/index.html`
 
 -----
 
